@@ -1,0 +1,70 @@
+#!/bin/bash
+
+set -euo pipefail
+
+exec 3>&1
+exec 1>&2
+cd "$1"
+jq -M -S . < /dev/stdin > /tmp/input.json
+
+if [ "$(jq -r '.params | has("path")' < /tmp/input.json)" = 'true' ]; then
+    path=$(jq -r .params.path < /tmp/input.json)
+else
+    echo "You need to provide the path."
+    exit 1
+fi
+
+if [ "$(jq -r '.source | has("pastebin")' < /tmp/input.json)" = 'true' ]; then
+    PASTEBIN=1
+    cat > ~/.pastebinit.xml <<ENDLINE
+<pastebinit>
+    <pastebin>$(jq -r .source.pastebin < /tmp/input.json)</pastebin>
+    <author>$(jq -r .source.author < /tmp/input.json)</author>
+    <format>$(jq -r .source.format < /tmp/input.json)</format>
+</pastebinit>
+ENDLINE
+else
+    PASTEBIN=
+fi
+
+if [ "$(jq -r '.params | has("path")' < /tmp/input.json)" = 'true' ]; then
+    path=$(jq -r .params.path < /tmp/input.json)
+else
+    echo "You need to provide the path."
+    exit 1
+fi
+
+SOURCE="$(dpkg-parsechangelog --show-field Source -l "$path"/debian/changelog)"
+VERSION="$(dpkg-parsechangelog --show-field Version -l "$path"/debian/changelog)"
+cd "$path"
+if [ -d .git ]; then
+    SHA=-$(git rev-parse --short HEAD)
+else
+    SHA=-none
+fi
+series="$(lsb_release -cs)"
+
+if [ "$(jq -r '.params | has("args")' < /tmp/input.json)" = 'true' ]; then
+    mapfile -t ARGS < <(jq -r '.params.args|.[]' < /tmp/input.json)
+else
+    ARGS=("--apt-upgrade" "--quiet")
+fi
+
+ARGS+=("--summary-file=$SOURCE-$VERSION$SHA-in-docker-$series-summary.log")
+ARGS+=("--log-file=$SOURCE-$VERSION$SHA-in-docker-$series-complete.log")
+ARGS+=("--output-dir=$SOURCE-$VERSION$SHA-in-docker-$series")
+
+sed -i "s/'isolation-machine'//" /usr/bin/autopkgtest-virt-null
+
+autopkgtest "${ARGS[@]}" -- null
+
+echo "=== $SOURCE-$VERSION$SHA-in-docker-$series-summary.log ==="
+cat "$SOURCE-$VERSION$SHA-in-docker-$series-summary.log"
+
+if [ -n "$PASTEBIN" ]; then
+    json='{"version":{"package":"'"$SOURCE"'","version":"'"$VERSION"'","pastebin":"'$(cat "$SOURCE-$VERSION$SHA-in-docker-$series-complete.log" | pastebinit)'"}}'
+else
+    json='{"version":{"package":"'"$SOURCE"'","version":"'"$VERSION"'"}}'
+fi
+
+jq -n "$json" >&3
