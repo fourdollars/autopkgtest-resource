@@ -26,6 +26,7 @@ elif [ "$0" = '/opt/resource/in' ]; then
                 curl -fsSL "$log" | grep -A 999999999 '<div class="highlight"><pre>' | grep -B 999999999 "^</pre>" | sed -e "s/.*<pre><span><\/span>//" -e "s/^<\/pre>.*//" > log.log
                 ;;
         esac
+        echo "$log" > log.link
     else
         log=
     fi
@@ -41,6 +42,7 @@ elif [ "$0" = '/opt/resource/in' ]; then
                 curl -fsSL "$summary" | grep -A 999999999 '<div class="highlight"><pre>' | grep -B 999999999 "^</pre>" | sed -e "s/.*<pre><span><\/span>//" -e "s/^<\/pre>.*//" > summary.log
                 ;;
         esac
+        echo "$summary" > summary.link
     else
         summary=
     fi
