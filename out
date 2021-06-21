@@ -4,6 +4,56 @@ set -euo pipefail
 
 exec 3>&1
 exec 1>&2
+
+if [ "$0" = '/opt/resource/check' ]; then
+    echo "[]" >&3
+    exit
+elif [ "$0" = '/opt/resource/in' ]; then
+    cd "$1"
+    jq -M -S . < /dev/stdin > /tmp/input.json
+
+    package=$(jq -r .version.package < /tmp/input.json)
+    version=$(jq -r .version.version < /tmp/input.json)
+
+    if [ "$(jq -r '.version | has("log")' < /tmp/input.json)" = 'true' ]; then
+        log=$(jq -r .version.log < /tmp/input.json)
+        cd "$1"
+        case "$log" in
+            (https://paste.ubuntu.com/p/*)
+                curl -fsSL "$log" | grep -A 999999999 '<div class="paste"><pre>' | grep -B 999999999 "^</pre>" | sed -e "s/.*<pre><span><\/span>//" -e "s/^<\/pre>.*//" > log.log
+                ;;
+            (https://paste.debian.net/*)
+                curl -fsSL "$log" | grep -A 999999999 '<div class="highlight"><pre>' | grep -B 999999999 "^</pre>" | sed -e "s/.*<pre><span><\/span>//" -e "s/^<\/pre>.*//" > log.log
+                ;;
+        esac
+    else
+        log=
+    fi
+
+    if [ "$(jq -r '.version | has("summary")' < /tmp/input.json)" = 'true' ]; then
+        summary=$(jq -r .version.summary < /tmp/input.json)
+        cd "$1"
+        case "$summary" in
+            (https://paste.ubuntu.com/p/*)
+                curl -fsSL "$summary" | grep -A 999999999 '<div class="paste"><pre>' | grep -B 999999999 "^</pre>" | sed -e "s/.*<pre><span><\/span>//" -e "s/^<\/pre>.*//" > summary.log
+                ;;
+            (https://paste.debian.net/*)
+                curl -fsSL "$summary" | grep -A 999999999 '<div class="highlight"><pre>' | grep -B 999999999 "^</pre>" | sed -e "s/.*<pre><span><\/span>//" -e "s/^<\/pre>.*//" > summary.log
+                ;;
+        esac
+    else
+        summary=
+    fi
+
+    if [ -z "$log" ] || [ -z "$summary" ]; then
+        json='{"version":{"package":"'"$package"'","version":"'"$version"'"}}'
+    else
+        json='{"version":{"package":"'"$package"'","version":"'"$version"'","log":"'$log'","summary":"'$summary'"}}'
+        jq -n "$json" >&3
+    fi
+    exit
+fi
+
 cd "$1"
 jq -M -S . < /dev/stdin > /tmp/input.json
 
@@ -62,7 +112,7 @@ echo "=== $SOURCE-$VERSION$SHA-in-docker-$series-summary.log ==="
 cat "$SOURCE-$VERSION$SHA-in-docker-$series-summary.log"
 
 if [ -n "$PASTEBIN" ]; then
-    json='{"version":{"package":"'"$SOURCE"'","version":"'"$VERSION"'","pastebin":"'$(cat "$SOURCE-$VERSION$SHA-in-docker-$series-complete.log" | pastebinit)'"}}'
+    json='{"version":{"package":"'"$SOURCE"'","version":"'"$VERSION"'","log":"'$(cat "$SOURCE-$VERSION$SHA-in-docker-$series-complete.log" | pastebinit)'","summary":"'$(cat "$SOURCE-$VERSION$SHA-in-docker-$series-summary.log" | pastebinit)'"}}'
 else
     json='{"version":{"package":"'"$SOURCE"'","version":"'"$VERSION"'"}}'
 fi
