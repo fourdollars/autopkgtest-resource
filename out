@@ -44,7 +44,7 @@ elif [ "$0" = '/opt/resource/in' ]; then
         summary=
     fi
 
-    json="{\"version\":{$(jq -c -M '.version' < /tmp/input.json)}}"
+    json="{\"version\":$(jq -c -M '.version' < /tmp/input.json)}"
     jq -n "$json" >&3
     exit
 fi
