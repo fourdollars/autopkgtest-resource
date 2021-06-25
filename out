@@ -44,7 +44,33 @@ elif [ "$0" = '/opt/resource/in' ]; then
         summary=
     fi
 
-    json="{\"version\":$(jq -c -M '.version' < /tmp/input.json)}"
+    package=$(jq -r .version.package < /tmp/input.json)
+    version=$(jq -r .version.version < /tmp/input.json)
+
+    if [ -z "$summary" ]; then
+        json=$(cat <<ENDLINE
+{
+  "version": $(jq -c -M '.version' < /tmp/input.json),
+  "metadata": [
+    {"name": "package", "value": "$package"},
+    {"name": "version", "value": "$version"}
+  ]
+}
+ENDLINE
+)
+    else
+        json=$(cat <<ENDLINE
+{
+  "version": $(jq -c -M '.version' < /tmp/input.json),
+  "metadata": [
+    {"name": "package", "value": "$package"},
+    {"name": "version", "value": "$version"},
+    {"name": "url",     "value": "$summary"}
+  ]
+}
+ENDLINE
+)
+    fi
     jq -n "$json" >&3
     exit
 fi
