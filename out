@@ -122,10 +122,10 @@ if [ -n "$PASTEBIN" ]; then
     "version": "$VERSION",
     "log": "$log",
     "summary": "$summary"
-  }
+  },
   "metadata": [
-    {"name": "package", "value": "${SOURCE}"}
-    {"name": "version", "value": "${VERSION}"}
+    {"name": "package", "value": "${SOURCE}"},
+    {"name": "version", "value": "${VERSION}"},
     {"name": "url", "value": "${summary}"}
   ]
 }
