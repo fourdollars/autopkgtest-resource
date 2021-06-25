@@ -52,8 +52,7 @@ elif [ "$0" = '/opt/resource/in' ]; then
 {
   "version": $(jq -c -M '.version' < /tmp/input.json),
   "metadata": [
-    {"name": "package", "value": "$package"},
-    {"name": "version", "value": "$version"}
+    {"name": "$package", "value": "$version"}
   ]
 }
 ENDLINE
@@ -63,8 +62,7 @@ ENDLINE
 {
   "version": $(jq -c -M '.version' < /tmp/input.json),
   "metadata": [
-    {"name": "package", "value": "$package"},
-    {"name": "version", "value": "$version"},
+    {"name": "$package", "value": "$version"},
     {"name": "url",     "value": "$summary"}
   ]
 }
@@ -150,8 +148,7 @@ if [ -n "$PASTEBIN" ]; then
     "summary": "$summary"
   },
   "metadata": [
-    {"name": "package", "value": "${SOURCE}"},
-    {"name": "version", "value": "${VERSION}"},
+    {"name": "${SOURCE}", "value": "${VERSION}"},
     {"name": "url", "value": "${summary}"}
   ]
 }
@@ -164,7 +161,10 @@ else
     "digest": "$digest",
     "package": "$SOURCE",
     "version": "$VERSION"
-  }
+  },
+  "metadata": [
+    {"name": "${SOURCE}", "value": "${VERSION}"}
+  ]
 }
 ENDLINE
 )
