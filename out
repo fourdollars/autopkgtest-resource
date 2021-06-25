@@ -12,9 +12,6 @@ elif [ "$0" = '/opt/resource/in' ]; then
     cd "$1"
     jq -M -S . < /dev/stdin > /tmp/input.json
 
-    package=$(jq -r .version.package < /tmp/input.json)
-    version=$(jq -r .version.version < /tmp/input.json)
-
     if [ "$(jq -r '.version | has("log")' < /tmp/input.json)" = 'true' ]; then
         log=$(jq -r .version.log < /tmp/input.json)
         cd "$1"
@@ -47,12 +44,8 @@ elif [ "$0" = '/opt/resource/in' ]; then
         summary=
     fi
 
-    if [ -z "$log" ] || [ -z "$summary" ]; then
-        json='{"version":{"package":"'"$package"'","version":"'"$version"'"}}'
-    else
-        json='{"version":{"package":"'"$package"'","version":"'"$version"'","log":"'$log'","summary":"'$summary'"}}'
-        jq -n "$json" >&3
-    fi
+    json="{\"version\":{$(jq -c -M '.version' < /tmp/input.json)}}"
+    jq -n "$json" >&3
     exit
 fi
 
@@ -113,10 +106,42 @@ autopkgtest "${ARGS[@]}" -- null
 echo "=== $SOURCE-$VERSION$SHA-in-docker-$series-summary.log ==="
 cat "$SOURCE-$VERSION$SHA-in-docker-$series-summary.log"
 
+log=$(cat "$SOURCE-$VERSION$SHA-in-docker-$series-complete.log" | pastebinit)
+echo "full log: $log" >> "$SOURCE-$VERSION$SHA-in-docker-$series-summary.log"
+
+summary=$(cat "$SOURCE-$VERSION$SHA-in-docker-$series-summary.log" | pastebinit)
+
+digest="sha256:$(cat "$SOURCE-$VERSION$SHA-in-docker-$series-complete.log" | sha256sum | awk '{print $1}')"
+
 if [ -n "$PASTEBIN" ]; then
-    json='{"version":{"package":"'"$SOURCE"'","version":"'"$VERSION"'","log":"'$(cat "$SOURCE-$VERSION$SHA-in-docker-$series-complete.log" | pastebinit)'","summary":"'$(cat "$SOURCE-$VERSION$SHA-in-docker-$series-summary.log" | pastebinit)'"}}'
+    json=$(cat <<ENDLINE
+{
+  "version": {
+    "digest": "$digest",
+    "package": "$SOURCE",
+    "version": "$VERSION",
+    "log": "$log",
+    "summary": "$summary"
+  }
+  "metadata": [
+    {"name": "package", "value": "${SOURCE}"}
+    {"name": "version", "value": "${VERSION}"}
+    {"name": "url", "value": "${summary}"}
+  ]
+}
+ENDLINE
+)
 else
-    json='{"version":{"package":"'"$SOURCE"'","version":"'"$VERSION"'"}}'
+    json=$(cat <<ENDLINE
+{
+  "version": {
+    "digest": "$digest",
+    "package": "$SOURCE",
+    "version": "$VERSION"
+  }
+}
+ENDLINE
+)
 fi
 
 jq -n "$json" >&3
