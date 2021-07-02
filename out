@@ -125,7 +125,11 @@ ARGS+=("--output-dir=$SOURCE-$VERSION$SHA-in-docker-$series")
 
 sed -i "s/'isolation-machine'//" /usr/bin/autopkgtest-virt-null
 
-autopkgtest "${ARGS[@]}" -- null
+if autopkgtest "${ARGS[@]}" -- null; then
+    RESULT="$?"
+else
+    RESULT="$?"
+fi
 
 echo "=== $SOURCE-$VERSION$SHA-in-docker-$series-summary.log ==="
 cat "$SOURCE-$VERSION$SHA-in-docker-$series-summary.log"
@@ -171,3 +175,5 @@ ENDLINE
 fi
 
 jq -n "$json" >&3
+
+exit "$RESULT"
