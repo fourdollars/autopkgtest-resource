@@ -11,18 +11,25 @@ if [ "$0" = '/opt/resource/check' ]; then
 elif [ "$0" = '/opt/resource/in' ]; then
     cd "$1"
     jq -M -S . < /dev/stdin > /tmp/input.json
+    if [ "$(jq -r '.params | has("skip") // false' < /tmp/input.json)" = 'true' ]; then
+        skip="true"
+    else
+        skip="false"
+    fi
 
     if [ "$(jq -r '.version | has("log")' < /tmp/input.json)" = 'true' ]; then
         log=$(jq -r .version.log < /tmp/input.json)
         cd "$1"
-        case "$log" in
-            (https://paste.ubuntu.com/p/*)
-                curl -fsSL "$log" | grep -A 999999999 '<div class="paste"><pre>' | grep -B 999999999 "^</pre>" | sed -e "s/.*<pre><span><\/span>//" -e "s/^<\/pre>.*//" > log.log
-                ;;
-            (https://paste.debian.net/*)
-                curl -fsSL "$log" | grep -A 999999999 '<div class="highlight"><pre>' | grep -B 999999999 "^</pre>" | sed -e "s/.*<pre><span><\/span>//" -e "s/^<\/pre>.*//" > log.log
-                ;;
-        esac
+        if [ "$skip" = "false" ]; then
+            case "$log" in
+                (https://paste.ubuntu.com/p/*)
+                    curl -fsSL "$log" | grep -A 999999999 '<div class="paste"><pre>' | grep -B 999999999 "^</pre>" | sed -e "s/.*<pre><span><\/span>//" -e "s/^<\/pre>.*//" > log.log
+                    ;;
+                (https://paste.debian.net/*)
+                    curl -fsSL "$log" | grep -A 999999999 '<div class="highlight"><pre>' | grep -B 999999999 "^</pre>" | sed -e "s/.*<pre><span><\/span>//" -e "s/^<\/pre>.*//" > log.log
+                    ;;
+            esac
+        fi
         echo "$log" > log.link
     else
         log=
@@ -31,14 +38,16 @@ elif [ "$0" = '/opt/resource/in' ]; then
     if [ "$(jq -r '.version | has("summary")' < /tmp/input.json)" = 'true' ]; then
         summary=$(jq -r .version.summary < /tmp/input.json)
         cd "$1"
-        case "$summary" in
-            (https://paste.ubuntu.com/p/*)
-                curl -fsSL "$summary" | grep -A 999999999 '<div class="paste"><pre>' | grep -B 999999999 "^</pre>" | sed -e "s/.*<pre><span><\/span>//" -e "s/^<\/pre>.*//" > summary.log
-                ;;
-            (https://paste.debian.net/*)
-                curl -fsSL "$summary" | grep -A 999999999 '<div class="highlight"><pre>' | grep -B 999999999 "^</pre>" | sed -e "s/.*<pre><span><\/span>//" -e "s/^<\/pre>.*//" > summary.log
-                ;;
-        esac
+        if [ "$skip" = "false" ]; then
+            case "$summary" in
+                (https://paste.ubuntu.com/p/*)
+                    curl -fsSL "$summary" | grep -A 999999999 '<div class="paste"><pre>' | grep -B 999999999 "^</pre>" | sed -e "s/.*<pre><span><\/span>//" -e "s/^<\/pre>.*//" > summary.log
+                    ;;
+                (https://paste.debian.net/*)
+                    curl -fsSL "$summary" | grep -A 999999999 '<div class="highlight"><pre>' | grep -B 999999999 "^</pre>" | sed -e "s/.*<pre><span><\/span>//" -e "s/^<\/pre>.*//" > summary.log
+                    ;;
+            esac
+        fi
         echo "$summary" > summary.link
     else
         summary=

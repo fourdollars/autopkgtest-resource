@@ -47,6 +47,7 @@ resources:
 
 * path: **Required**. Specify a path to run autopkgtest.
 * args: Optional. '--apt-upgrade' and '--quiet' by default.
+* get_params: skip: Optional. Disabled by default. It won't download the log when it is enabled.
 
 ```yaml
 - put: autopkgtest
@@ -55,6 +56,8 @@ resources:
     args:
      - --apt-upgrade
      - --quiet
+  get_params:
+    skip: true
 ```
 
 ## Example
