@@ -105,16 +105,26 @@ else
     PASTEBIN=
 fi
 
-if [ "$(jq -r '.params | has("path")' < /tmp/input.json)" = 'true' ]; then
-    path=$(jq -r .params.path < /tmp/input.json)
-else
-    echo "You need to provide the path."
-    exit 1
+cd "$path"
+
+debian=$(jq -r '.params.debian // ""' < /tmp/input.json)
+if [ -n "$debian" ]; then
+    if [ -d "../$debian/debian" ]; then
+        rm -fr debian
+        cp -rv "../$debian/debian" .
+    elif [ -f "../$debian/changelog" ] && [ -f "../$debian/control" ] && [ -f "../$debian/copyright" ] && [ -f "../$debian/rules" ]; then
+        rm -fr debian
+        mkdir debian
+        cp -rv "../$debian/*" debian
+    else
+        echo "$debian is not a Debian packaging folder."
+        exit 1
+    fi
 fi
 
-SOURCE="$(dpkg-parsechangelog --show-field Source -l "$path"/debian/changelog)"
-VERSION="$(dpkg-parsechangelog --show-field Version -l "$path"/debian/changelog)"
-cd "$path"
+SOURCE="$(dpkg-parsechangelog --show-field Source -l debian/changelog)"
+VERSION="$(dpkg-parsechangelog --show-field Version -l debian/changelog)"
+
 if [ -d .git ]; then
     SHA=-$(git rev-parse --short HEAD)
 else

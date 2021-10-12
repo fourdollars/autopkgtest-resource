@@ -46,6 +46,7 @@ resources:
 ### put step
 
 * path: **Required**. Specify a path to run autopkgtest.
+* debian: Optional. Specify an external Debian packaging folder.
 * args: Optional. '--apt-upgrade' and '--quiet' by default.
 * get_params: skip: Optional. Disabled by default. It won't download the log when it is enabled.
 
