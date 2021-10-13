@@ -17,46 +17,59 @@ elif [ "$0" = '/opt/resource/in' ]; then
         skip="false"
     fi
 
-    if [ "$(jq -r '.version | has("log")' < /tmp/input.json)" = 'true' ]; then
-        log=$(jq -r .version.log < /tmp/input.json)
-        cd "$1"
-        if [ "$skip" = "false" ]; then
-            case "$log" in
-                (https://paste.ubuntu.com/p/*)
-                    curl -fsSL "$log" | grep -A 999999999 '<div class="paste"><pre>' | grep -B 999999999 "^</pre>" | sed -e "s/.*<pre><span><\/span>//" -e "s/^<\/pre>.*//" > log.log
-                    ;;
-                (https://paste.debian.net/*)
-                    curl -fsSL "$log" | grep -A 999999999 '<div class="highlight"><pre>' | grep -B 999999999 "^</pre>" | sed -e "s/.*<pre><span><\/span>//" -e "s/^<\/pre>.*//" > log.log
-                    ;;
-            esac
-        fi
-        echo "$log" > log.link
-    else
-        log=
+    log=$(jq -r '.version.log // ""' < /tmp/input.json)
+    if [ "$skip" = "false" ] && [ -n "$log" ]; then
+        case "$log" in
+            (https://paste.ubuntu.com/p/*)
+                curl -fsSL "$log" | grep -A 999999999 '<div class="paste"><pre>' | grep -B 999999999 "^</pre>" | sed -e "s/.*<pre><span><\/span>//" -e "s/^<\/pre>.*//" > log.log
+                echo "$log" > log.link
+                ;;
+            (https://paste.debian.net/*)
+                curl -fsSL "$log" | grep -A 999999999 '<div class="highlight"><pre>' | grep -B 999999999 "^</pre>" | sed -e "s/.*<pre><span><\/span>//" -e "s/^<\/pre>.*//" > log.log
+                echo "$log" > log.link
+                ;;
+        esac
     fi
 
-    if [ "$(jq -r '.version | has("summary")' < /tmp/input.json)" = 'true' ]; then
-        summary=$(jq -r .version.summary < /tmp/input.json)
-        cd "$1"
-        if [ "$skip" = "false" ]; then
-            case "$summary" in
-                (https://paste.ubuntu.com/p/*)
-                    curl -fsSL "$summary" | grep -A 999999999 '<div class="paste"><pre>' | grep -B 999999999 "^</pre>" | sed -e "s/.*<pre><span><\/span>//" -e "s/^<\/pre>.*//" > summary.log
-                    ;;
-                (https://paste.debian.net/*)
-                    curl -fsSL "$summary" | grep -A 999999999 '<div class="highlight"><pre>' | grep -B 999999999 "^</pre>" | sed -e "s/.*<pre><span><\/span>//" -e "s/^<\/pre>.*//" > summary.log
-                    ;;
-            esac
-        fi
-        echo "$summary" > summary.link
-    else
-        summary=
+    summary=$(jq -r '.version.summary // ""' < /tmp/input.json)
+    if [ "$skip" = "false" ] && [ -n "$summary" ]; then
+        case "$summary" in
+            (https://paste.ubuntu.com/p/*)
+                curl -fsSL "$summary" | grep -A 999999999 '<div class="paste"><pre>' | grep -B 999999999 "^</pre>" | sed -e "s/.*<pre><span><\/span>//" -e "s/^<\/pre>.*//" > summary.log
+                echo "$summary" > summary.link
+                ;;
+            (https://paste.debian.net/*)
+                curl -fsSL "$summary" | grep -A 999999999 '<div class="highlight"><pre>' | grep -B 999999999 "^</pre>" | sed -e "s/.*<pre><span><\/span>//" -e "s/^<\/pre>.*//" > summary.log
+                echo "$summary" > summary.link
+                ;;
+        esac
     fi
 
     package=$(jq -r .version.package < /tmp/input.json)
     version=$(jq -r .version.version < /tmp/input.json)
+    url=$(jq -r '.version.url // ""' < /tmp/input.json)
 
-    if [ -z "$summary" ]; then
+    WEBDAV="$(jq -r '.source.webdav // ""' < /tmp/input.json)"
+    USERNAME="$(jq -r '.source.username // ""' < /tmp/input.json)"
+    PASSWORD="$(jq -r '.source.password // ""' < /tmp/input.json)"
+
+    if [ "$skip" = "false" ] && [ -n "$WEBDAV" ] && [ -n "$url" ]; then
+        TARGET=$(basename "$url")
+        apt-get install --yes rclone
+        mkdir -p ~/.config/rclone
+        cat > ~/.config/rclone/rclone.conf <<ENDLINE
+[remote]
+type = webdav
+url = $WEBDAV
+vendor = other
+user = $USERNAME
+pass = $(rclone obscure "$PASSWORD")
+ENDLINE
+        args=(-P -L --ignore-times)
+        rclone copy "${args[@]}" remote:"$TARGET" .
+fi
+
+    if [ -z "$url" ]; then
         json=$(cat <<ENDLINE
 {
   "version": $(jq -c -M '.version' < /tmp/input.json),
@@ -72,7 +85,7 @@ ENDLINE
   "version": $(jq -c -M '.version' < /tmp/input.json),
   "metadata": [
     {"name": "$package", "value": "$version"},
-    {"name": "url",     "value": "$summary"}
+    {"name": "url",     "value": "$url"}
   ]
 }
 ENDLINE
@@ -105,6 +118,10 @@ else
     PASTEBIN=
 fi
 
+WEBDAV="$(jq -r '.source.webdav // ""' < /tmp/input.json)"
+USERNAME="$(jq -r '.source.username // ""' < /tmp/input.json)"
+PASSWORD="$(jq -r '.source.password // ""' < /tmp/input.json)"
+
 cd "$path"
 
 debian=$(jq -r '.params.debian // ""' < /tmp/input.json)
@@ -126,7 +143,6 @@ SOURCE="$(dpkg-parsechangelog --show-field Source -l debian/changelog)"
 VERSION="$(dpkg-parsechangelog --show-field Version -l debian/changelog)"
 
 if [ -d .git ]; then
-    apt-get -q -q update
     apt-get install --yes git
     SHA=-$(git rev-parse --short HEAD)
 else
@@ -140,9 +156,10 @@ else
     ARGS=("--apt-upgrade" "--quiet")
 fi
 
-ARGS+=("--summary-file=$SOURCE-$VERSION$SHA-in-docker-$series-summary.log")
-ARGS+=("--log-file=$SOURCE-$VERSION$SHA-in-docker-$series-complete.log")
-ARGS+=("--output-dir=$SOURCE-$VERSION$SHA-in-docker-$series")
+TARGET="$SOURCE-$VERSION$SHA-in-linux-container-$series"
+ARGS+=("--summary-file=$TARGET-summary.log")
+ARGS+=("--log-file=$TARGET-complete.log")
+ARGS+=("--output-dir=$TARGET")
 
 sed -i "s/'isolation-machine'//" /usr/bin/autopkgtest-virt-null
 
@@ -152,20 +169,40 @@ else
     RESULT="$?"
 fi
 
-echo "=== $SOURCE-$VERSION$SHA-in-docker-$series-summary.log ==="
-cat "$SOURCE-$VERSION$SHA-in-docker-$series-summary.log"
+echo "=== $TARGET-summary.log ==="
+cat "$TARGET-summary.log"
 
 if [ -n "$PASTEBIN" ]; then
-    apt-get -q -q update
     apt-get install --yes pastebinit
-    log=$(cat "$SOURCE-$VERSION$SHA-in-docker-$series-complete.log" | pastebinit)
-    echo "full log: $log" >> "$SOURCE-$VERSION$SHA-in-docker-$series-summary.log"
-    summary=$(cat "$SOURCE-$VERSION$SHA-in-docker-$series-summary.log" | pastebinit)
+    log=$(cat "$TARGET-complete.log" | pastebinit)
+    echo "full log: $log" >> "$TARGET-summary.log"
+    summary=$(cat "$TARGET-summary.log" | pastebinit)
+    url="$summary"
 fi
 
-digest="sha256:$(cat "$SOURCE-$VERSION$SHA-in-docker-$series-complete.log" | sha256sum | awk '{print $1}')"
+if [ -n "$WEBDAV" ]; then
+    apt-get install --yes rclone
+    mkdir -p ~/.config/rclone
+    cat > ~/.config/rclone/rclone.conf <<ENDLINE
+[remote]
+type = webdav
+url = $WEBDAV
+vendor = other
+user = $USERNAME
+pass = $(rclone obscure "$PASSWORD")
+ENDLINE
+    args=(-P -L --ignore-times)
+    rclone copy "${args[@]}" "$TARGET-complete.log" remote:"$TARGET"
+    log="$WEBDAV/$TARGET/$TARGET-complete.log"
+    rclone copy "${args[@]}" "$TARGET-summary.log" remote:"$TARGET"
+    summary="$WEBDAV/$TARGET/$TARGET-summary.log"
+    rclone copy "${args[@]}" "$TARGET" remote:"$TARGET"
+    url="$WEBDAV/$TARGET"
+fi
 
-if [ -n "$PASTEBIN" ]; then
+digest="sha256:$(cat "$TARGET-complete.log" | sha256sum | awk '{print $1}')"
+
+if [ -n "$PASTEBIN" ] || [ -n "$WEBDAV" ]; then
     json=$(cat <<ENDLINE
 {
   "version": {
@@ -173,11 +210,12 @@ if [ -n "$PASTEBIN" ]; then
     "package": "$SOURCE",
     "version": "$VERSION",
     "log": "$log",
-    "summary": "$summary"
+    "summary": "$summary",
+    "url": "$url"
   },
   "metadata": [
     {"name": "${SOURCE}", "value": "${VERSION}"},
-    {"name": "url", "value": "${summary}"}
+    {"name": "url", "value": "${url}"}
   ]
 }
 ENDLINE
