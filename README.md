@@ -93,8 +93,7 @@ resources:
   type: resource-autopkgtest
   icon: bug-check
   source:
-    pastebinit:
-      pastebin: paste.debian.net
-      author: WhoIam
-      format: text
+    pastebin: paste.debian.net
+    author: WhoIam
+    format: text
 ```

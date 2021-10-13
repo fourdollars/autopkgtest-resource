@@ -126,9 +126,11 @@ SOURCE="$(dpkg-parsechangelog --show-field Source -l debian/changelog)"
 VERSION="$(dpkg-parsechangelog --show-field Version -l debian/changelog)"
 
 if [ -d .git ]; then
+    apt-get -q -q update
+    apt-get install --yes git
     SHA=-$(git rev-parse --short HEAD)
 else
-    SHA=-none
+    SHA=""
 fi
 series="$(lsb_release -cs)"
 
@@ -153,10 +155,13 @@ fi
 echo "=== $SOURCE-$VERSION$SHA-in-docker-$series-summary.log ==="
 cat "$SOURCE-$VERSION$SHA-in-docker-$series-summary.log"
 
-log=$(cat "$SOURCE-$VERSION$SHA-in-docker-$series-complete.log" | pastebinit)
-echo "full log: $log" >> "$SOURCE-$VERSION$SHA-in-docker-$series-summary.log"
-
-summary=$(cat "$SOURCE-$VERSION$SHA-in-docker-$series-summary.log" | pastebinit)
+if [ -n "$PASTEBIN" ]; then
+    apt-get -q -q update
+    apt-get install --yes pastebinit
+    log=$(cat "$SOURCE-$VERSION$SHA-in-docker-$series-complete.log" | pastebinit)
+    echo "full log: $log" >> "$SOURCE-$VERSION$SHA-in-docker-$series-summary.log"
+    summary=$(cat "$SOURCE-$VERSION$SHA-in-docker-$series-summary.log" | pastebinit)
+fi
 
 digest="sha256:$(cat "$SOURCE-$VERSION$SHA-in-docker-$series-complete.log" | sha256sum | awk '{print $1}')"
 
