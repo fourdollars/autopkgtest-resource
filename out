@@ -238,4 +238,10 @@ fi
 
 jq -n "$json" >&3
 
+DONTFAIL=$(jq -r '.params.dont_fail // false' < /tmp/input.json)
+
+if [ "$DONTFAIL" = "true" ]; then
+    exit
+fi
+
 exit "$RESULT"

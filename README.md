@@ -60,6 +60,7 @@ resources:
 * path: **Required**. Specify a path to run autopkgtest.
 * debian: Optional. Specify an external Debian packaging folder.
 * args: Optional. '--apt-upgrade' and '--quiet' by default.
+* dont_fail: Optional. The step will fail when autopkgtest failed by default.
 * get_params: skip: Optional. Disabled by default. It won't download the log when it is enabled.
 
 ```yaml
@@ -69,6 +70,7 @@ resources:
     args:
      - --apt-upgrade
      - --quiet
+    dont_fail: true
   get_params:
     skip: true
 ```
