@@ -6,7 +6,7 @@ exec 3>&1
 exec 1>&2
 
 if [ "$0" = '/opt/resource/check' ]; then
-    echo "[]" >&3
+    echo '[{"digest":"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}]' >&3
     exit
 elif [ "$0" = '/opt/resource/in' ]; then
     cd "$1"
