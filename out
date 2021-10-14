@@ -48,13 +48,16 @@ elif [ "$0" = '/opt/resource/in' ]; then
     package=$(jq -r .version.package < /tmp/input.json)
     version=$(jq -r .version.version < /tmp/input.json)
     url=$(jq -r '.version.url // ""' < /tmp/input.json)
+    if [ -n "$url" ]; then
+        TARGET=$(basename "$url")
+        echo "$url" >> "$TARGET".link
+    fi
 
     WEBDAV="$(jq -r '.source.webdav // ""' < /tmp/input.json)"
     USERNAME="$(jq -r '.source.username // ""' < /tmp/input.json)"
     PASSWORD="$(jq -r '.source.password // ""' < /tmp/input.json)"
 
     if [ "$skip" = "false" ] && [ -n "$WEBDAV" ] && [ -n "$url" ]; then
-        TARGET=$(basename "$url")
         apt-get install --yes rclone
         mkdir -p ~/.config/rclone
         cat > ~/.config/rclone/rclone.conf <<ENDLINE
