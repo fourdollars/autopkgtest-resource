@@ -2,6 +2,13 @@
 
 set -euo pipefail
 
+clearup ()
+{
+    rm -f /tmp/input.json /tmp/source-setup-commands.sh /tmp/params-setup-commands.sh
+}
+
+trap clearup EXIT INT TERM
+
 exec 3>&1
 exec 1>&2
 
@@ -163,6 +170,18 @@ TARGET="$SOURCE-$VERSION$SHA-in-linux-container-$series"
 ARGS+=("--summary-file=$TARGET-summary.log")
 ARGS+=("--log-file=$TARGET-complete.log")
 ARGS+=("--output-dir=$TARGET")
+
+if [ "$(jq -r '.source | has("setup-commands")' < /tmp/input.json)" = 'true' ]; then
+    jq -r '.source."setup-commands"' < /tmp/input.json > /tmp/source-setup-commands.sh
+    chmod +x /tmp/source-setup-commands.sh
+    ARGS+=("--setup-commands=/tmp/source-setup-commands.sh")
+fi
+
+if [ "$(jq -r '.params | has("setup-commands")' < /tmp/input.json)" = 'true' ]; then
+    jq -r '.params."setup-commands"' < /tmp/input.json > /tmp/params-setup-commands.sh
+    chmod +x /tmp/params-setup-commands.sh
+    ARGS+=("--setup-commands=/tmp/params-setup-commands.sh")
+fi
 
 sed -i "s/'isolation-machine'//" /usr/bin/autopkgtest-virt-null
 
