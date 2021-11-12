@@ -191,9 +191,6 @@ else
     RESULT="$?"
 fi
 
-echo "=== $TARGET-summary.log ==="
-cat "$TARGET-summary.log"
-
 if [ -n "$PASTEBIN" ]; then
     apt-get install --yes pastebinit
     log=$(cat "$TARGET-complete.log" | pastebinit)
@@ -221,6 +218,9 @@ ENDLINE
     rclone copy "${args[@]}" "$TARGET" remote:"$TARGET"
     url="$WEBDAV/$TARGET"
 fi
+
+echo "=== $TARGET-summary.log ==="
+cat "$TARGET-summary.log"
 
 digest="sha256:$(cat "$TARGET-complete.log" | sha256sum | awk '{print $1}')"
 
@@ -260,10 +260,58 @@ fi
 
 jq -n "$json" >&3
 
+case "$RESULT" in
+    (0)
+        echo -e "EXIT STATUS\n\t0    all tests passed"
+        ;;
+    (2)
+        echo -e "EXIT STATUS\n\t2    at least one test was skipped (or at least one flaky test failed)"
+        ;;
+    (4)
+        echo -e "EXIT STATUS\n\t4    at least one test failed"
+        ;;
+    (6)
+        echo -e "EXIT STATUS\n\t6    at least one test failed and at least one test skipped"
+        ;;
+    (8)
+        echo -e "EXIT STATUS\n\t8    no tests in this package, or all non-superficial tests were skipped"
+        ;;
+    (12)
+        echo -e "EXIT STATUS\n\t12   erroneous package"
+        ;;
+    (14)
+        echo -e "EXIT STATUS\n\t14   erroneous package and at least one test skipped"
+        ;;
+    (16)
+        echo -e "EXIT STATUS\n\t16   testbed failure"
+        ;;
+    (20)
+        echo -e "EXIT STATUS\n\t20   other unexpected failures including bad usage"
+        ;;
+    (*)
+        echo -e "EXIT STATUS\n\t$RESULT   unexpected exit status for autopkgtest"
+        ;;
+esac
+
 DONTFAIL=$(jq -r '.params.dont_fail // false' < /tmp/input.json)
+
+if [ "$(jq -r '.params | has("exit_status")' < /tmp/input.json)" = 'true' ]; then
+    mapfile -t EXITSTATUS < <(jq -r '.params.exit_status | .[]' < /tmp/input.json)
+else
+    EXITSTATUS=()
+fi
 
 if [ "$DONTFAIL" = "true" ]; then
     exit
 fi
 
-exit "$RESULT"
+if [ -z "${EXITSTATUS[*]}" ]; then
+    exit "$RESULT"
+else
+    for exit_status in "${EXITSTATUS[@]}"; do
+        if [ "${exit_status}" = "$RESULT" ]; then
+            exit
+        fi
+    done
+    exit 1
+fi

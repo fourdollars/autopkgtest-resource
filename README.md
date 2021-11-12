@@ -73,9 +73,10 @@ resources:
 * path: **Required**. Specify a path to run autopkgtest.
 * debian: Optional. Specify an external Debian packaging folder.
 * args: Optional. '--apt-upgrade' and '--quiet' by default.
-* dont_fail: Optional. The step will fail when autopkgtest failed by default.
 * get_params: skip: Optional. Disabled by default. It won't download the log when it is enabled.
 * setup-commands: Optional. Setup commands for autopkgtest.
+* dont_fail: Optional. The step will fail when autopkgtest failed by default.
+* exit_status: Optional. Expected exit status of autopkgtest.
 
 ```yaml
 - put: autopkgtest
@@ -89,6 +90,24 @@ resources:
       apt-get -q -q -y install software-properties-common
       add-apt-repository -sy ppa:fourdollars/energy-tools
     dont_fail: true
+  get_params:
+    skip: true
+```
+
+```yaml
+- put: autopkgtest
+  params:
+    path: SomeFolderInTask
+    args:
+     - --apt-upgrade
+     - --quiet
+    setup-commands: |
+      #!/bin/sh
+      apt-get -q -q -y install software-properties-common
+      add-apt-repository -sy ppa:fourdollars/energy-tools
+    exit_status:
+      - 0
+      - 2
   get_params:
     skip: true
 ```
