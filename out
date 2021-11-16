@@ -183,7 +183,13 @@ if [ "$(jq -r '.params | has("setup-commands")' < /tmp/input.json)" = 'true' ]; 
     ARGS+=("--setup-commands=/tmp/params-setup-commands.sh")
 fi
 
-sed -i "s/'isolation-machine'//" /usr/bin/autopkgtest-virt-null
+if [ "$(jq -r '.params."isolation-machine" // false' < /tmp/input.json)" = 'true' ]; then
+    :
+elif [ "$(jq -r '.source."isolation-machine" // false' < /tmp/input.json)" = 'true' ]; then
+    :
+else
+    sed -i "s/'isolation-machine'//" /usr/bin/autopkgtest-virt-null
+fi
 
 if autopkgtest "${ARGS[@]}" -- null; then
     RESULT="$?"
