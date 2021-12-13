@@ -4,7 +4,7 @@ set -euo pipefail
 
 clearup ()
 {
-    rm -f /tmp/input.json /tmp/source-setup-commands.sh /tmp/params-setup-commands.sh
+    rm -f /tmp/source-setup-commands.sh /tmp/params-setup-commands.sh
 }
 
 trap clearup EXIT INT TERM
@@ -12,19 +12,20 @@ trap clearup EXIT INT TERM
 exec 3>&1
 exec 1>&2
 
+payload="$(cat <&0)"
+
 if [ "$0" = '/opt/resource/check' ]; then
     echo '[{"digest":"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}]' >&3
     exit
 elif [ "$0" = '/opt/resource/in' ]; then
     cd "$1"
-    jq -M -S . < /dev/stdin > /tmp/input.json
-    if [ "$(jq -r '.params | has("skip") // false' < /tmp/input.json)" = 'true' ]; then
+    if [ "$(jq -r '.params | has("skip") // false' <<< "$payload")" = 'true' ]; then
         skip="true"
     else
         skip="false"
     fi
 
-    log=$(jq -r '.version.log // ""' < /tmp/input.json)
+    log=$(jq -r '.version.log // ""' <<< "$payload")
     if [ "$skip" = "false" ] && [ -n "$log" ]; then
         case "$log" in
             (https://paste.ubuntu.com/p/*)
@@ -38,7 +39,7 @@ elif [ "$0" = '/opt/resource/in' ]; then
         esac
     fi
 
-    summary=$(jq -r '.version.summary // ""' < /tmp/input.json)
+    summary=$(jq -r '.version.summary // ""' <<< "$payload")
     if [ "$skip" = "false" ] && [ -n "$summary" ]; then
         case "$summary" in
             (https://paste.ubuntu.com/p/*)
@@ -52,17 +53,17 @@ elif [ "$0" = '/opt/resource/in' ]; then
         esac
     fi
 
-    package=$(jq -r .version.package < /tmp/input.json)
-    version=$(jq -r .version.version < /tmp/input.json)
-    url=$(jq -r '.version.url // ""' < /tmp/input.json)
+    package=$(jq -r .version.package <<< "$payload")
+    version=$(jq -r .version.version <<< "$payload")
+    url=$(jq -r '.version.url // ""' <<< "$payload")
     if [ -n "$url" ]; then
         TARGET=$(basename "$url")
         echo "$url" >> "$TARGET".link
     fi
 
-    WEBDAV="$(jq -r '.source.webdav // ""' < /tmp/input.json)"
-    USERNAME="$(jq -r '.source.username // ""' < /tmp/input.json)"
-    PASSWORD="$(jq -r '.source.password // ""' < /tmp/input.json)"
+    WEBDAV="$(jq -r '.source.webdav // ""' <<< "$payload")"
+    USERNAME="$(jq -r '.source.username // ""' <<< "$payload")"
+    PASSWORD="$(jq -r '.source.password // ""' <<< "$payload")"
 
     if [ "$skip" = "false" ] && [ -n "$WEBDAV" ] && [ -n "$url" ]; then
         apt-get install --yes rclone
@@ -82,7 +83,7 @@ fi
     if [ -z "$url" ]; then
         json=$(cat <<ENDLINE
 {
-  "version": $(jq -c -M '.version' < /tmp/input.json),
+  "version": $(jq -c -M '.version' <<< "$payload"),
   "metadata": [
     {"name": "$package", "value": "$version"}
   ]
@@ -92,7 +93,7 @@ ENDLINE
     else
         json=$(cat <<ENDLINE
 {
-  "version": $(jq -c -M '.version' < /tmp/input.json),
+  "version": $(jq -c -M '.version' <<< "$payload"),
   "metadata": [
     {"name": "$package", "value": "$version"},
     {"name": "url",     "value": "$url"}
@@ -106,35 +107,34 @@ ENDLINE
 fi
 
 cd "$1"
-jq -M -S . < /dev/stdin > /tmp/input.json
 
-if [ "$(jq -r '.params | has("path")' < /tmp/input.json)" = 'true' ]; then
-    path=$(jq -r .params.path < /tmp/input.json)
+if [ "$(jq -r '.params | has("path")' <<< "$payload")" = 'true' ]; then
+    path=$(jq -r .params.path <<< "$payload")
 else
     echo "You need to provide the path."
     exit 1
 fi
 
-if [ "$(jq -r '.source | has("pastebin")' < /tmp/input.json)" = 'true' ]; then
+if [ "$(jq -r '.source | has("pastebin")' <<< "$payload")" = 'true' ]; then
     PASTEBIN=1
     cat > ~/.pastebinit.xml <<ENDLINE
 <pastebinit>
-    <pastebin>$(jq -r .source.pastebin < /tmp/input.json)</pastebin>
-    <author>$(jq -r .source.author < /tmp/input.json)</author>
-    <format>$(jq -r .source.format < /tmp/input.json)</format>
+    <pastebin>$(jq -r .source.pastebin <<< "$payload")</pastebin>
+    <author>$(jq -r .source.author <<< "$payload")</author>
+    <format>$(jq -r .source.format <<< "$payload")</format>
 </pastebinit>
 ENDLINE
 else
     PASTEBIN=
 fi
 
-WEBDAV="$(jq -r '.source.webdav // ""' < /tmp/input.json)"
-USERNAME="$(jq -r '.source.username // ""' < /tmp/input.json)"
-PASSWORD="$(jq -r '.source.password // ""' < /tmp/input.json)"
+WEBDAV="$(jq -r '.source.webdav // ""' <<< "$payload")"
+USERNAME="$(jq -r '.source.username // ""' <<< "$payload")"
+PASSWORD="$(jq -r '.source.password // ""' <<< "$payload")"
 
 cd "$path"
 
-debian=$(jq -r '.params.debian // ""' < /tmp/input.json)
+debian=$(jq -r '.params.debian // ""' <<< "$payload")
 if [ -n "$debian" ]; then
     if [ -d "../$debian/debian" ]; then
         rm -fr debian
@@ -160,8 +160,8 @@ else
 fi
 series="$(lsb_release -cs)"
 
-if [ "$(jq -r '.params | has("args")' < /tmp/input.json)" = 'true' ]; then
-    mapfile -t ARGS < <(jq -r '.params.args|.[]' < /tmp/input.json)
+if [ "$(jq -r '.params | has("args")' <<< "$payload")" = 'true' ]; then
+    mapfile -t ARGS < <(jq -r '.params.args|.[]' <<< "$payload")
 else
     ARGS=("--apt-upgrade" "--quiet")
 fi
@@ -171,21 +171,21 @@ ARGS+=("--summary-file=$TARGET-summary.log")
 ARGS+=("--log-file=$TARGET-complete.log")
 ARGS+=("--output-dir=$TARGET")
 
-if [ "$(jq -r '.source | has("setup-commands")' < /tmp/input.json)" = 'true' ]; then
-    jq -r '.source."setup-commands"' < /tmp/input.json > /tmp/source-setup-commands.sh
+if [ "$(jq -r '.source | has("setup-commands")' <<< "$payload")" = 'true' ]; then
+    jq -r '.source."setup-commands"' <<< "$payload" > /tmp/source-setup-commands.sh
     chmod +x /tmp/source-setup-commands.sh
     ARGS+=("--setup-commands=/tmp/source-setup-commands.sh")
 fi
 
-if [ "$(jq -r '.params | has("setup-commands")' < /tmp/input.json)" = 'true' ]; then
-    jq -r '.params."setup-commands"' < /tmp/input.json > /tmp/params-setup-commands.sh
+if [ "$(jq -r '.params | has("setup-commands")' <<< "$payload")" = 'true' ]; then
+    jq -r '.params."setup-commands"' <<< "$payload" > /tmp/params-setup-commands.sh
     chmod +x /tmp/params-setup-commands.sh
     ARGS+=("--setup-commands=/tmp/params-setup-commands.sh")
 fi
 
-if [ "$(jq -r '.params."isolation-machine" // false' < /tmp/input.json)" = 'true' ]; then
+if [ "$(jq -r '.params."isolation-machine" // false' <<< "$payload")" = 'true' ]; then
     :
-elif [ "$(jq -r '.source."isolation-machine" // false' < /tmp/input.json)" = 'true' ]; then
+elif [ "$(jq -r '.source."isolation-machine" // false' <<< "$payload")" = 'true' ]; then
     :
 else
     sed -i "s/'isolation-machine'//" /usr/bin/autopkgtest-virt-null
@@ -299,10 +299,10 @@ case "$RESULT" in
         ;;
 esac
 
-DONTFAIL=$(jq -r '.params.dont_fail // false' < /tmp/input.json)
+DONTFAIL=$(jq -r '.params.dont_fail // false' <<< "$payload")
 
-if [ "$(jq -r '.params | has("exit_status")' < /tmp/input.json)" = 'true' ]; then
-    mapfile -t EXITSTATUS < <(jq -r '.params.exit_status | .[]' < /tmp/input.json)
+if [ "$(jq -r '.params | has("exit_status")' <<< "$payload")" = 'true' ]; then
+    mapfile -t EXITSTATUS < <(jq -r '.params.exit_status | .[]' <<< "$payload")
 else
     EXITSTATUS=()
 fi
