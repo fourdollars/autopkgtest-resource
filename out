@@ -183,6 +183,20 @@ if [ "$(jq -r '.params | has("setup-commands")' <<< "$payload")" = 'true' ]; the
     ARGS+=("--setup-commands=/tmp/params-setup-commands.sh")
 fi
 
+if [ "$(jq -r '.source | has("env")' <<< "$payload")" = 'true' ]; then
+    while read -r key; do
+        value=$(jq -r ".source.env.\"$key\"" <<< "$payload")
+        ARGS+=("--env=$key=$value")
+    done < <(jq -r '.source.env | keys[]' <<< "$payload")
+fi
+
+if [ "$(jq -r '.params | has("env")' <<< "$payload")" = 'true' ]; then
+    while read -r key; do
+        value=$(jq -r ".params.env.\"$key\"" <<< "$payload")
+        ARGS+=("--env=$key=$value")
+    done < <(jq -r '.params.env | keys[]' <<< "$payload")
+fi
+
 if [ "$(jq -r '.params."isolation-machine" // false' <<< "$payload")" = 'true' ]; then
     :
 elif [ "$(jq -r '.source."isolation-machine" // false' <<< "$payload")" = 'true' ]; then
