@@ -202,7 +202,11 @@ if [ "$(jq -r '.params."isolation-machine" // false' <<< "$payload")" = 'true' ]
 elif [ "$(jq -r '.source."isolation-machine" // false' <<< "$payload")" = 'true' ]; then
     :
 else
-    sed -i "s/'isolation-machine'//" /usr/bin/autopkgtest-virt-null
+    if grep 'isolation-machine' /usr/bin/autopkgtest-virt-null | grep ,$ >/dev/null; then
+        sed -i "/'isolation-machine',/d" /usr/bin/autopkgtest-virt-null
+    else
+        sed -i "s/'isolation-machine'//" /usr/bin/autopkgtest-virt-null
+    fi
 fi
 
 if autopkgtest "${ARGS[@]}" -- null; then
