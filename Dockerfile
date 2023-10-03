@@ -1,4 +1,5 @@
-FROM ubuntu:latest
+ARG TAG=latest
+FROM ubuntu:${TAG}
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update
 RUN apt-get install --yes jq locales dpkg-dev devscripts equivs autopkgtest
