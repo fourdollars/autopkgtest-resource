@@ -24,6 +24,7 @@ elif [ "$0" = '/opt/resource/in' ]; then
     else
         skip="false"
     fi
+    max_depth=$(jq -r '.params | has("max_depth") // 2' <<< "$payload")
 
     log=$(jq -r '.version.log // ""' <<< "$payload")
     if [ "$skip" = "false" ] && [ -n "$log" ]; then
@@ -76,7 +77,7 @@ vendor = other
 user = $USERNAME
 pass = $(rclone obscure "$PASSWORD")
 ENDLINE
-        args=(-P -L --ignore-times)
+        args=(-P -L --ignore-times --max-depth="$max_depth")
         rclone copy "${args[@]}" remote:"$TARGET" .
 fi
 

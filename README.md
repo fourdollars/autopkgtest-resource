@@ -79,6 +79,7 @@ resources:
 * debian: Optional. Specify an external Debian packaging folder.
 * args: Optional. '--apt-upgrade' and '--quiet' by default.
 * get_params: skip: Optional. Disabled by default. It won't download the log when it is enabled.
+* get_params: max_depth: Optional. It will use '--max-depth=2' by default of `rclone copy` on WebDAV when it downloads the log.
 * setup-commands: Optional. Setup commands for autopkgtest.
 * env: Optional. Set --env=VAR=value for autopkgtest.
 * dont_fail: Optional. The step will fail when autopkgtest failed by default.
