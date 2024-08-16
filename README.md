@@ -2,7 +2,7 @@
 # autopkgtest-resource
 [concourse-ci](https://concourse-ci.org/)'s autopkgtest-resource
 
-autopkgtest against ubuntu:latest so far.
+autopkgtest against ubuntu:latest and ubuntu:{noble,jammy,focal} so far.
 
 ## Config
 

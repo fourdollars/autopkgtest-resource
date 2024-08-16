@@ -45,7 +45,7 @@ jobs:
 
     strategy:
       matrix:
-        tag: [latest, jammy, focal]
+        tag: [latest, noble, jammy, focal]
 
     runs-on: ubuntu-latest
     if: github.event_name == 'push' || github.event_name == 'schedule'
