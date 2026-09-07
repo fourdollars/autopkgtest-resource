@@ -7,6 +7,18 @@ clearup ()
     rm -f /tmp/source-setup-commands.sh /tmp/params-setup-commands.sh
 }
 
+# The image's package index is baked when the image is built, so it goes stale
+# as the archive moves on and apt ends up asking for versions that have already
+# been superseded and dropped from the pool.  Only refresh it when that bites,
+# to keep the common case fast.
+apt_install ()
+{
+    if ! apt-get install --yes "$@"; then
+        apt-get update
+        apt-get install --yes "$@"
+    fi
+}
+
 trap clearup EXIT INT TERM
 
 exec 3>&1
@@ -67,7 +79,7 @@ elif [ "$0" = '/opt/resource/in' ]; then
     PASSWORD="$(jq -r '.source.password // ""' <<< "$payload")"
 
     if [ "$skip" = "false" ] && [ -n "$WEBDAV" ] && [ -n "$url" ]; then
-        apt-get install --yes rclone
+        apt_install rclone
         mkdir -p ~/.config/rclone
         cat > ~/.config/rclone/rclone.conf <<ENDLINE
 [remote]
@@ -154,7 +166,7 @@ SOURCE="$(dpkg-parsechangelog --show-field Source -l debian/changelog)"
 VERSION="$(dpkg-parsechangelog --show-field Version -l debian/changelog)"
 
 if [ -d .git ]; then
-    apt-get install --yes git
+    apt_install git
     SHA=-$(git rev-parse --short HEAD)
 else
     SHA=""
@@ -217,7 +229,7 @@ else
 fi
 
 if [ -n "$PASTEBIN" ]; then
-    apt-get install --yes pastebinit
+    apt_install pastebinit
     log=$(cat "$TARGET-complete.log" | pastebinit)
     echo "full log: $log" >> "$TARGET-summary.log"
     summary=$(cat "$TARGET-summary.log" | pastebinit)
@@ -225,7 +237,7 @@ if [ -n "$PASTEBIN" ]; then
 fi
 
 if [ -n "$WEBDAV" ]; then
-    apt-get install --yes rclone
+    apt_install rclone
     mkdir -p ~/.config/rclone
     cat > ~/.config/rclone/rclone.conf <<ENDLINE
 [remote]
